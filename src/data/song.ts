@@ -6,9 +6,19 @@ export const strums = chords.flatMap((chord, bar) => (bar === 3 || bar === 7 ? [
 export const beatSeconds = 60 / bpm;
 export const loopSeconds = 32 * beatSeconds;
 
-// A gentle tune, one note on each beat. Frequencies are in hertz.
-const emTune = [329.63, 392, 493.88, 392]; // E, G, B, G
-const a9Tune = [440, 493.88, 554.37, 392]; // A, B, C-sharp, G
-export const melody = chords.flatMap((chord, bar) =>
-  (chord === 'Em' ? emTune : a9Tune).map((frequency, beat) => ({beat: bar * 4 + beat, frequency}))
-);
+// The backing band plays one step per beat. Change these notes to write a new tune.
+// Each number is a note's frequency in hertz; 0 means a rest.
+const tunes = {
+  Em: [329.63, 392, 493.88, 392, 440, 392, 329.63, 293.66],
+  A9: [277.18, 329.63, 392, 493.88, 440, 392, 329.63, 277.18],
+};
+export const backing = chords.flatMap((chord, bar) => {
+  const notes = tunes[chord];
+  return [0, 1, 2, 3].map(beat => ({
+    beat: bar * 4 + beat,
+    melody: notes[(bar % 2) * 4 + beat],
+    bass: chord === 'Em' ? (beat === 2 ? 123.47 : 82.41) : (beat === 2 ? 164.81 : 110),
+    chord,
+    beatInBar: beat,
+  }));
+});
