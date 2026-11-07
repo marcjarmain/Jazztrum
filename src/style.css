@@ -3,3 +3,5 @@
 .speed{display:flex;align-items:center;gap:8px;font-weight:700}.speed select{min-height:64px;border:0;border-radius:14px;padding:0 15px;background:#31525a;color:white;font:700 18px system-ui}.speed select:disabled{opacity:.6}
 body{background:linear-gradient(rgba(8,20,28,.72),rgba(8,20,28,.82)),url('/jazz-background.png') center center / cover fixed no-repeat #102a35}
 
+
+.recording{margin:30px auto;padding:24px;border-radius:18px;background:rgba(16,42,53,.9);max-width:800px}.recording audio{width:100%;margin-bottom:20px}.recording input{display:block;margin:12px 0;color:white}
