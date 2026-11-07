@@ -5,3 +5,5 @@ body{background:linear-gradient(rgba(8,20,28,.72),rgba(8,20,28,.82)),url('/jazz-
 
 
 .recording{margin:30px auto;padding:24px;border-radius:18px;background:rgba(16,42,53,.9);max-width:800px}.recording audio{width:100%;margin-bottom:20px}.recording input{display:block;margin:12px 0;color:white}
+
+.intro-chart{margin-top:24px}.string-cards{display:flex;gap:12px;flex-wrap:wrap}.string-cards span{background:#31525a;border-radius:12px;padding:14px;min-width:110px}.string-cards b{display:block;color:#ffe39a;font-size:24px}
