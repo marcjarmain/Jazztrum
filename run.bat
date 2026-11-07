@@ -16,6 +16,8 @@ if not exist node_modules\vite (
   )
 )
 echo Starting Jazztrum. Keep this window open while you play.
-echo Open the Local address shown below in your browser.
+echo On this computer open the Local address shown below.
+echo On your iPad, connect to the same Wi-Fi and open the Network address below in Safari.
+echo Keep this window open. Microphone play requires an HTTPS site.
 call npm.cmd run dev -- --open
 pause
