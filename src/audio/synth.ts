@@ -21,3 +21,18 @@ export function drum(ctx: AudioContext, time: number, kind: 'kick' | 'snare', ou
     source.buffer = buffer; source.connect(filter).connect(gain); source.start(time);
   }
 }
+
+// Rounded electric-keyboard voice with a quick attack and a soft decay.
+export function keys(ctx: AudioContext, time: number, frequency: number, duration: number, output: AudioNode) {
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0.0001, time);
+  gain.gain.exponentialRampToValueAtTime(0.07, time + 0.012);
+  gain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
+  gain.connect(output);
+  for (const [multiple, level] of [[1, 1], [2, .22], [3, .08]]) {
+    const oscillator = ctx.createOscillator(); const part = ctx.createGain();
+    oscillator.type = 'triangle'; oscillator.frequency.value = frequency * multiple;
+    part.gain.value = level; oscillator.connect(part).connect(gain);
+    oscillator.start(time); oscillator.stop(time + duration);
+  }
+}
