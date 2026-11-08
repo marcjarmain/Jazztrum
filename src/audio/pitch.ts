@@ -23,36 +23,90 @@ export function tuningReading(frequency: number, selected: number | null) {
     inTune: Math.abs(cents) <= 5, wrongString: Math.abs(cents) > 150};
 }
 
-// YIN's cumulative mean normalized difference detects periodicity, rather than
-// mistaking a guitar's loudest overtone for the note. This is for ONE string.
+export const minimumPitchRms = 0.0008;
+
+// Use a logarithmic level display: a quiet acoustic guitar still needs to be
+// visibly distinguishable from an unplugged or muted microphone.
+export function microphoneLevel(rms: number) {
+  return rms > 0 ? Math.max(0, Math.min(100, (20 * Math.log10(rms) + 75) / 65 * 100)) : 0;
+}
+
+// Keep a measured pitch through short dropouts as a pluck decays. A held value
+// is explicitly labelled in the UI, expires, and is cleared on string changes.
+export class PitchTracker {
+  private history: number[] = [];
+  private frequency: number | null = null;
+  private lastGood = -Infinity;
+  reset() {this.history = []; this.frequency = null; this.lastGood = -Infinity;}
+  update(pitch: number | null, now: number) {
+    if (pitch !== null && Number.isFinite(pitch) && pitch > 0) {
+      if (this.history.length && Math.abs(centsFrom(pitch, this.history[this.history.length - 1])) > 45) this.history = [];
+      this.history.push(pitch);
+      if (this.history.length > 3) this.history.shift();
+      this.frequency = [...this.history].sort((a, b) => a - b)[Math.floor(this.history.length / 2)];
+      this.lastGood = now;
+      return {frequency: this.frequency, held: false};
+    }
+    this.history = [];
+    if (now - this.lastGood <= 1400) return {frequency: this.frequency, held: true};
+    this.reset();
+    return {frequency: null, held: false};
+  }
+}
+
+// YIN cumulative mean normalized difference, with octave-error correction.
+// Compare local minima before accepting an overtone; never blindly divide a
+// detected frequency to force it to match the selected string.
 export function detectPitch(samples: Float32Array, sampleRate: number): number | null {
   if (!Number.isFinite(sampleRate) || sampleRate <= 0 || samples.length < 1024) return null;
-  const size = Math.floor(samples.length / 2);
   let mean = 0;
   for (const value of samples) mean += value;
   mean /= samples.length;
   let power = 0;
   for (const value of samples) power += (value - mean) ** 2;
-  if (Math.sqrt(power / samples.length) < 0.008) return null;
+  if (Math.sqrt(power / samples.length) < minimumPitchRms) return null;
 
-  const minLag = Math.max(2, Math.floor(sampleRate / 420));
-  const maxLag = Math.min(size - 1, Math.ceil(sampleRate / 60));
+  // Average adjacent samples before downsampling. A longer input window helps
+  // low E, while analysing near 12 kHz keeps this inexpensive on phones.
+  const stride = Math.max(1, Math.floor(sampleRate / 12000));
+  const data = new Float32Array(Math.floor(samples.length / stride));
+  for (let i = 0; i < data.length; i++) {
+    let value = 0;
+    for (let j = 0; j < stride; j++) value += samples[i * stride + j];
+    data[i] = value / stride;
+  }
+  const rate = sampleRate / stride;
+  const size = Math.floor(data.length / 2);
+
+  const minLag = Math.max(2, Math.floor(rate / 420));
+  const maxLag = Math.min(size - 1, Math.ceil(rate / 60));
   const difference = new Float32Array(maxLag + 1);
   let sum = 0;
   for (let lag = 1; lag <= maxLag; lag++) {
     let value = 0;
-    for (let i = 0; i < size; i++) value += (samples[i] - samples[i + lag]) ** 2;
+    for (let i = 0; i < size; i++) value += (data[i] - data[i + lag]) ** 2;
     sum += value;
     difference[lag] = sum > 0 ? value * lag / sum : 1;
   }
+  const candidates: {lag: number; quality: number}[] = [];
   for (let lag = minLag; lag < maxLag; lag++) {
-    if (difference[lag] >= 0.12) continue;
-    while (lag + 1 <= maxLag && difference[lag + 1] < difference[lag]) lag++;
-    if (lag === maxLag) return null;
+    if (difference[lag] < 0.2 && difference[lag] <= difference[lag - 1] && difference[lag] < difference[lag + 1]) {
+      const curvature = difference[lag - 1] - 2 * difference[lag] + difference[lag + 1];
+      // Compare interpolated minima, not integer sample positions: otherwise
+      // a period halfway between samples can lose to an octave below it.
+      const quality = Math.max(0, difference[lag] - (curvature ? (difference[lag - 1] - difference[lag + 1]) ** 2 / (8 * curvature) : 0));
+      candidates.push({lag, quality});
+    }
+  }
+  if (candidates.length) {
+    const best = Math.min(...candidates.map(candidate => candidate.quality));
+    // Prefer the earliest equally good period to avoid subharmonic readings,
+    // but require an octave candidate to explain the signal nearly as well.
+    const {lag} = candidates.find(candidate => candidate.quality <= best * 1.6 + 0.01)!;
     const left = difference[lag - 1], middle = difference[lag], right = difference[lag + 1];
     const curvature = left - 2 * middle + right;
     const refined = lag + (curvature ? (left - right) / (2 * curvature) : 0);
-    const frequency = sampleRate / refined;
+    const frequency = rate / refined;
     return frequency >= 60 && frequency <= 420 ? frequency : null;
   }
   return null;

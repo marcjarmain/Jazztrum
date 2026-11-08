@@ -27,3 +27,8 @@ device and is not recorded or uploaded. Practice audio pauses while tuning;
 leaving the tuner, stopping it, or hiding the page releases the microphone.
 The tuner checks string pitch; the separate **Timing calibration** adjusts
 rhythm timing, and practice scoring still does not judge notes or chords.
+
+The needle holds the last measured pitch briefly as a pluck fades, then becomes
+an outlined waiting marker. A held value is labelled **Last reading**. The mic
+level and status below it distinguish a quiet input from sound that cannot yet
+be identified. If the browser pauses audio, use **Restart listening**.
