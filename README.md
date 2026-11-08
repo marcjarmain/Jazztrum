@@ -32,3 +32,24 @@ The needle holds the last measured pitch briefly as a pluck fades, then becomes
 an outlined waiting marker. A held value is labelled **Last reading**. The mic
 level and status below it distinguish a quiet input from sound that cannot yet
 be identified. If the browser pauses audio, use **Restart listening**.
+
+## Learn a baseline from your trusted tuner
+
+Tune all six open strings with your established tuner first, then choose
+**Set up my guitar** in Jazztrum. Select **My guitar is tuned — begin** and
+allow microphone access. The guided setup starts with string 6 (low E, the
+thickest string) and moves through A, D, G, B, then string 1 (high E, the thinnest).
+Pluck only the requested string, let it ring until a steady sample is learned,
+then confirm it to move to the next string. Do not adjust tuning pegs during setup.
+
+Only a complete set of six references is saved. Cancelling keeps the previous
+baseline. Jazztrum stores measured frequencies and input levels in this browser,
+not audio recordings, and uses them as the zero point for later tuning checks.
+Later sharp or flat notes still move the needle. Samples far from standard
+tuning or matching a different open string are rejected. If the microphone
+mainly hears the second harmonic, setup labels that overtone and asks you to
+confirm the correct string; only that learned harmonic correction is used later.
+A baseline cannot recover a guitar that the microphone cannot hear.
+Repeat setup when changing guitar or microphone.
+If a microphone device change is detected, the saved profile is suspended until
+you set up that input. **Clear baseline** returns to the standard references.

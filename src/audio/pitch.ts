@@ -11,15 +11,16 @@ export function centsFrom(frequency: number, target: number) {
   return 1200 * Math.log2(frequency / target);
 }
 
-export function tuningReading(frequency: number, selected: number | null) {
+export function tuningReading(frequency: number, selected: number | null, references?: readonly number[]) {
   if (!Number.isFinite(frequency) || frequency <= 0) return null;
   const targetIndex = selected ?? guitarStrings.reduce((best, string, index) =>
-    Math.abs(centsFrom(frequency, string.frequency)) < Math.abs(centsFrom(frequency, guitarStrings[best].frequency)) ? index : best, 0);
+    Math.abs(centsFrom(frequency, references?.[index] ?? string.frequency)) < Math.abs(centsFrom(frequency, references?.[best] ?? guitarStrings[best].frequency)) ? index : best, 0);
   const target = guitarStrings[targetIndex];
-  const cents = centsFrom(frequency, target.frequency);
+  const reference = references?.[targetIndex] ?? target.frequency;
+  const cents = centsFrom(frequency, reference);
   const midi = Math.round(69 + 12 * Math.log2(frequency / 440));
   const names = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'];
-  return {targetIndex, target, cents, note: names[((midi % 12) + 12) % 12] + (Math.floor(midi / 12) - 1),
+  return {targetIndex, target, reference, cents, note: names[((midi % 12) + 12) % 12] + (Math.floor(midi / 12) - 1),
     inTune: Math.abs(cents) <= 5, wrongString: Math.abs(cents) > 150};
 }
 
@@ -57,14 +58,14 @@ export class PitchTracker {
 // YIN cumulative mean normalized difference, with octave-error correction.
 // Compare local minima before accepting an overtone; never blindly divide a
 // detected frequency to force it to match the selected string.
-export function detectPitch(samples: Float32Array, sampleRate: number): number | null {
+export function detectPitch(samples: Float32Array, sampleRate: number, minimumRms = minimumPitchRms): number | null {
   if (!Number.isFinite(sampleRate) || sampleRate <= 0 || samples.length < 1024) return null;
   let mean = 0;
   for (const value of samples) mean += value;
   mean /= samples.length;
   let power = 0;
   for (const value of samples) power += (value - mean) ** 2;
-  if (Math.sqrt(power / samples.length) < minimumPitchRms) return null;
+  if (Math.sqrt(power / samples.length) < minimumRms) return null;
 
   // Average adjacent samples before downsampling. A longer input window helps
   // low E, while analysing near 12 kHz keeps this inexpensive on phones.
