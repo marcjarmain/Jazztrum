@@ -218,6 +218,8 @@ export function Tuner({onClose}: {onClose: () => void}) {
   }
 
   function clearTuningProgress() {
+    tuningPending.current = null;
+    tuningLock.current.reset();
     completed.current = new Set();
     setTunedStrings([]);
     setLockedString(null);
