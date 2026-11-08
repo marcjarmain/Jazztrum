@@ -40,7 +40,10 @@ Tune all six open strings with your established tuner first, then choose
 allow microphone access. The guided setup starts with string 6 (low E, the
 thickest string) and moves through A, D, G, B, then string 1 (high E, the thinnest).
 Pluck only the requested string, let it ring until a steady sample is learned,
-then confirm it to move to the next string. Do not adjust tuning pegs during setup.
+then wait for its green tick. Setup moves automatically to the next string and
+saves the baseline after all six are learned. Do not adjust tuning pegs during setup.
+Uncheck **Automatically tick and move to the next string** if you prefer manual
+confirmation; a **Next string now** button is also available after a sample locks.
 
 Only a complete set of six references is saved. Cancelling keeps the previous
 baseline. Jazztrum stores measured frequencies and input levels in this browser,
@@ -53,3 +56,11 @@ A baseline cannot recover a guitar that the microphone cannot hear.
 Repeat setup when changing guitar or microphone.
 If a microphone device change is detected, the saved profile is suspended until
 you set up that input. **Clear baseline** returns to the standard references.
+
+During normal tuning, hold the selected string within five cents for about
+three quarters of a second. A green tick confirms it, then the next unfinished
+string is selected automatically. After all six strings pass, the microphone
+stops and the app shows a completion message. A brief flash in range or a held
+old reading does not complete a string. Automatic advancement can be switched
+off; **Auto-detect string** selects this manual mode. Stop, Cancel, and leaving
+the tuner cancel any pending automatic transition.
