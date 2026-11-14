@@ -1,5 +1,33 @@
 # Handoff: song import, chord timeline and chord recognition
 
+## STATUS (14 November 2026): phases 0 to 5 are built and live
+
+Built by Claude Sonnet 5.5 in one session, each phase tested and pushed. 114 tests pass.
+Phase 6 (beat grid, loop section, seventh chords) is NOT started and needs the owner's sign-off.
+**Nothing has been tested with a real guitar or on the iPad.** Section 10 is still the owner's to do.
+
+Changes from this document, and why (all found by tests, not guessed):
+
+1. **Chroma subtracts a noise floor** (median log magnitude of the spectrum) before folding to
+   twelve notes. The chroma exactly as written in section 6.2 failed the 10 dB noise test.
+2. **Verification rule changed** (`verifyChord` in `src/dsp/templates.ts`). Section 6.6 said
+   "similarity at least 0.70 and first or second place". That accepted Em for E and Am for C.
+   Now: similarity at least 0.70, within `verifyMargin` (0.08) of the best triad, and it must beat the
+   same root in the other quality. Measured on synthetic chords: right chords have margin 0 or less,
+   wrong relative chords 0.14 or more. **Real guitars are noisier: if correct chords are rejected,
+   raise `verifyMargin` (settings in `src/dsp/chroma.ts`) after checking Chord lab.**
+3. **Seventh and ninth chords have their own templates** (A7 = A C# E G, A9 adds B). The A9 voicing in
+   the built in song contains E G B, which on its own is an Em chord.
+4. **Test chords use additive harmonics, not Karplus-Strong**, in `src/dsp/testSignals.ts`: an
+   integer length delay line is up to 20 cents out of tune at 11 kHz.
+5. The built in song and its Chord lab check use the same `ChordListener`; the groove scores a strum
+   only after the right chord rings for 3 frames in the 400 ms after it.
+6. Chart editor nudges block edges with buttons (0.1 s steps) instead of dragging.
+7. Importing a chart requires the same recording (same file hash); a re-encoded file will be refused.
+8. Targets that began before the loudness gate was learned are skipped only when under 1 s of them is left.
+
+---
+
 Written 14 November 2026 against commit `389fc18` on `main`.
 Read `AGENTS.md` first. It governs setup, testing and publishing.
 This file tells you what to build, in what order, and how to prove each step works.

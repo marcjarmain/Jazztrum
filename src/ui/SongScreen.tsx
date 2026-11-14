@@ -6,6 +6,8 @@ import {LoudnessGate} from '../game/chordCheck';
 import {SongScorer, type TargetStatus} from '../game/scorer';
 import {makeTargets} from '../game/targets';
 import {ChordDiagram} from './ChordDiagram';
+import {ChartEditor} from './ChartEditor';
+import type {Segment} from '../library/chart';
 
 type Props = {id: string; onBack: () => void; onOpenTuner: () => void; onOpenLab: () => void};
 type Phase = 'idle' | 'getready' | 'playing' | 'paused';
@@ -31,6 +33,9 @@ export function SongScreen({id, onBack, onOpenTuner, onOpenLab}: Props) {
   const [message, setMessage] = useState('');
   const [warning, setWarning] = useState('');
   const [listenerOn, setListenerOn] = useState(true);
+  const [editing, setEditing] = useState(false);
+  const [audioPlaying, setAudioPlaying] = useState(false);
+  const pauseRef = useRef<(finished?: boolean) => void>(() => undefined);
   const audio = useRef<HTMLAudioElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const messageTimer = useRef(0);
@@ -125,6 +130,8 @@ export function SongScreen({id, onBack, onOpenTuner, onOpenLab}: Props) {
     l.previous = scorer.states.map(s => s.status);
   }
 
+  pauseRef.current = pause;
+
   async function play() {
     const a = audio.current, l = live.current;
     if (!a || phase === 'getready' || phase === 'playing') return;
@@ -165,7 +172,7 @@ export function SongScreen({id, onBack, onOpenTuner, onOpenLab}: Props) {
 
   // Leaving the screen, or the page being hidden, stops the music and releases the microphone.
   useEffect(() => {
-    const hidden = () => { if (document.hidden && live.current.stage !== 'off') pause(); };
+    const hidden = () => { if (document.hidden && (live.current.stage !== 'off' || audio.current?.paused === false)) pauseRef.current(); };
     document.addEventListener('visibilitychange', hidden);
     return () => {
       document.removeEventListener('visibilitychange', hidden);
@@ -173,7 +180,7 @@ export function SongScreen({id, onBack, onOpenTuner, onOpenLab}: Props) {
       releaseMic();
       window.clearTimeout(messageTimer.current);
     };
-  }, [song]);
+  }, [song?.id]);
 
   // The scrolling timeline.
   useEffect(() => {
@@ -218,6 +225,21 @@ export function SongScreen({id, onBack, onOpenTuner, onOpenLab}: Props) {
     return () => cancelAnimationFrame(frame);
   }, [song, targets, scorer]);
 
+  // A corrected chart is saved at once and the score starts again from nothing.
+  function changeSegments(segments: Segment[], tuningCents?: number) {
+    if (!song) return;
+    const record = {...song, chart: {...song.chart, segments, tuningCents: tuningCents ?? song.chart.tuningCents}};
+    setSong(record);
+    setHits(0);
+    void saveSong(record).catch(() => say('Could not save this change on this device.', 4000));
+  }
+  function seekTo(t: number) {
+    const a = audio.current;
+    if (!a) return;
+    a.currentTime = t;
+    scorer.seek(t);
+  }
+
   if (song === undefined) return <main><p>Loading…</p></main>;
   if (!song) return <main><p>This song could not be found.</p><button onClick={onBack}>Back to songs</button></main>;
 
@@ -246,7 +268,7 @@ export function SongScreen({id, onBack, onOpenTuner, onOpenLab}: Props) {
       </section>
       {warning && <p role="alert" className="warning">{warning}</p>}
       <canvas ref={canvas} width="1200" height="215" aria-label="Chord timeline" />
-      <audio ref={audio} src={url} preload="auto" playsInline onEnded={() => pause(true)} />
+      <audio ref={audio} src={url} preload="auto" playsInline onPlay={() => setAudioPlaying(true)} onPause={() => setAudioPlaying(false)} onEnded={() => (editing ? setAudioPlaying(false) : pause(true))} />
       <nav>
         <button onClick={onBack}>Songs</button>
         <button onClick={onOpenTuner}>Tune guitar</button>
@@ -256,9 +278,13 @@ export function SongScreen({id, onBack, onOpenTuner, onOpenLab}: Props) {
             <option value={1}>Normal</option><option value={0.75}>3/4 speed</option><option value={0.5}>1/2 speed</option>
           </select>
         </label>
-        {busy ? <button className="primary" onClick={() => pause()}>❚❚ Pause</button> : <button className="primary" onClick={play}>♪ Play</button>}
+        {editing
+          ? <button className="primary" onClick={() => (audioPlaying ? audio.current?.pause() : void audio.current?.play())}>{audioPlaying ? '❚❚ Stop' : '▶ Listen'}</button>
+          : busy ? <button className="primary" onClick={() => pause()}>❚❚ Pause</button> : <button className="primary" onClick={play}>♪ Play</button>}
+        <button disabled={busy} onClick={() => {audio.current?.pause(); setEditing(!editing);}}>{editing ? '✔ Done editing' : '✎ Edit chords'}</button>
         <button onClick={() => {const a = audio.current; if (a) {a.currentTime = 0; scorer.seek(0); setHits(0); setTotal(scorer.total);}}}>⏮ Start</button>
       </nav>
+      {editing && <ChartEditor song={song} time={time} getTime={() => audio.current?.currentTime ?? 0} seek={seekTo} onSegments={changeSegments} />}
       <input className="seek" type="range" min={0} max={song.chart.duration} step={0.1} value={time} aria-label="Position in song"
         onChange={e => {const a = audio.current, v = Number(e.target.value); if (a) {a.currentTime = v; scorer.seek(v); setHits(scorer.hits); setTotal(scorer.total);}}} />
     </main>

@@ -8,8 +8,14 @@ Install Node.js, then run `npm install` and `npm run dev`. Run `npm test` for th
 ## Publish
 Push to main and enable GitHub Pages with GitHub Actions as the source in repository settings. The workflow builds and publishes the app at `https://marcjarmain.github.io/Jazztrum/`.
 
-## Change the song
-Open `src/data/song.ts`. Change the BPM, the chords in each bar, and the strum beat positions. Strings and finger positions are in `src/data/chords.ts`. Run the tests after changes; if you deliberately change the song, update the song test too.
+## Add your own songs
+Choose **Songs**, then **Add a song** and pick an audio file (MP3, M4A, WAV). Jazztrum works out the chords on the device, in the background, and keeps the file and its chart in this browser only. Nothing is uploaded and no audio is ever stored in this repository.
+
+Open the song and press **Play**. A chord timeline scrolls toward the glowing line, and the app listens through the microphone and counts each chord you get right. Use headphones, or the microphone hears the recording itself. Automatic chord detection is only partly accurate, so tap **Edit chords** to fix wrong chords, move block edges, split or merge blocks, re-analyse (your corrections are kept) or export and import a chart as a JSON file.
+
+**Chord lab** shows what the microphone hears: loudness, the twelve note energies and the three best matching chords. Use it to judge how well your guitar is recognised.
+
+The built in groove is in `src/data/song.ts` (BPM, chords per bar, strum positions) with fingerings in `src/data/chordShapes.ts`. The chord detection maths is in `src/dsp/` and its tunable numbers are in the `settings` object in `src/dsp/chroma.ts`.
 
 On iPad, open the published page in Safari and choose Share → Add to Home Screen. Open it once online before trying offline. Microphone access needs HTTPS. Calibration measures your average delay; use the speaker or wired headphones.
 
