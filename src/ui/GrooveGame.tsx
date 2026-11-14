@@ -1,4 +1,4 @@
-import {useEffect, useRef, useState, type ReactNode} from 'react';
+import {useEffect, useRef, useState} from 'react';
 import {bpm, chords, strums, backing, groove} from '../data/song';
 import {judge} from '../game/judge';
 import {tone, pluck, drum, keys} from '../audio/synth';
@@ -28,7 +28,7 @@ const beatsPerLoop = 32;
 const chordWindowSeconds = 0.4;
 
 // The built in song: a looping eight bar groove with a scrolling strum timeline.
-export function GrooveGame({songChoice, onOpenTuner, onOpenLab}: {songChoice: ReactNode; onOpenTuner: () => void; onOpenLab: () => void}) {
+export function GrooveGame({onOpenLibrary, onOpenTuner, onOpenLab}: {onOpenLibrary: () => void; onOpenTuner: () => void; onOpenLab: () => void}) {
   const [mode, setMode] = useState<Mode>('stop');
   const [speed, setSpeed] = useState(1);
   const [score, setScore] = useState(0);
@@ -398,7 +398,7 @@ export function GrooveGame({songChoice, onOpenTuner, onOpenLab}: {songChoice: Re
       <nav>
         <button onClick={() => { stop(); onOpenTuner(); }}>Tune guitar</button>
         <button onClick={() => { stop(); onOpenLab(); }}>Chord lab</button>
-        {songChoice}
+        <button onClick={() => { stop(); onOpenLibrary(); }}>Songs</button>
         <label className="speed">
           Speed{' '}
           <select

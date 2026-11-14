@@ -2,32 +2,27 @@ import {useState} from 'react';
 import {Tuner} from '../Tuner';
 import {ChordLab} from './ChordLab';
 import {GrooveGame} from './GrooveGame';
-import {RecordingScreen} from './RecordingScreen';
+import {SongLibrary} from './SongLibrary';
+import {SongScreen} from './SongScreen';
 
-type Song = 'disco' | 'metallica';
-type Screen = 'game' | 'tuner' | 'lab';
+// 'game' is the built in groove, 'song:<id>' an imported song.
+type Screen = 'game' | 'tuner' | 'lab' | 'library' | `song:${string}`;
 
 export function App() {
   const [screen, setScreen] = useState<Screen>('game');
-  const [song, setSong] = useState<Song>('disco');
+  const [returnTo, setReturnTo] = useState<Screen>('game');
 
-  if (screen === 'tuner') return <Tuner onClose={() => setScreen('game')} />;
-  if (screen === 'lab') return <ChordLab onClose={() => setScreen('game')} />;
-
-  const open = (next: Screen) => () => {
-    document.querySelector('audio')?.pause();
+  const go = (next: Screen) => setScreen(next);
+  const visit = (next: 'tuner' | 'lab') => () => {
+    setReturnTo(screen);
     setScreen(next);
   };
-  const songChoice = (
-    <label className="speed">
-      Tune{' '}
-      <select aria-label="Tune" value={song} onChange={e => setSong(e.target.value as Song)}>
-        <option value="disco">Jasper’s Disco Groove</option>
-        <option value="metallica">Nothing Else Matters</option>
-      </select>
-    </label>
-  );
-  return song === 'metallica'
-    ? <RecordingScreen songChoice={songChoice} onOpenTuner={open('tuner')} onOpenLab={open('lab')} />
-    : <GrooveGame songChoice={songChoice} onOpenTuner={open('tuner')} onOpenLab={open('lab')} />;
+
+  if (screen === 'tuner') return <Tuner onClose={() => go(returnTo)} />;
+  if (screen === 'lab') return <ChordLab onClose={() => go(returnTo)} />;
+  if (screen === 'library') return <SongLibrary onOpenGroove={() => go('game')} onOpenSong={id => go(`song:${id}`)} onBack={() => go('game')} />;
+  if (screen.startsWith('song:')) {
+    return <SongScreen key={screen} id={screen.slice(5)} onBack={() => go('library')} onOpenTuner={visit('tuner')} onOpenLab={visit('lab')} />;
+  }
+  return <GrooveGame onOpenLibrary={() => go('library')} onOpenTuner={visit('tuner')} onOpenLab={visit('lab')} />;
 }
