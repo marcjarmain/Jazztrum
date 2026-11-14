@@ -1,4 +1,4 @@
-const CACHE = 'jazztrum-v8';
+const CACHE = 'jazztrum-v9';
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(['./', './manifest.webmanifest', './icon.png', './jazz-background.png'])).then(() => self.skipWaiting()));
 });

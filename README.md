@@ -1,6 +1,6 @@
 # Jazztrum
 
-A guitar rhythm game for iPad. Play Table Mountain Stomp and tap or strum at the glowing line.
+A guitar rhythm game for iPad. Play Jasper’s Disco Groove and tap or strum at the glowing line.
 
 ## Run
 Install Node.js, then run `npm install` and `npm run dev`. Run `npm test` for the timing and song tests. `npm run build` makes the production site.
