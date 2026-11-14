@@ -64,6 +64,15 @@ describe('chord templates', () => {
       expect(verifyChord(c, expected).ok, `${played} must not verify as ${expected} (${sim.toFixed(2)})`).toBe(false);
     }
   });
+  it('rejects the relative major or minor chord, which shares two notes', () => {
+    const pairs: [string, string][] = [['Am', 'C'], ['C', 'Am'], ['Em', 'G'], ['G', 'Em'], ['Dm', 'F'], ['F', 'Dm'], ['Bm', 'D'], ['D', 'Bm'], ['G', 'C'], ['D', 'A']];
+    for (const [played, expected] of pairs) {
+      for (const noisy of [false, true]) {
+        const s = noisy ? addNoise(strum(fingerings[played], 1.5, sr), 10) : strum(fingerings[played], 1.5, sr);
+        expect(verifyChord(chroma(frame(s), sr), expected).ok, `${played} must not verify as ${expected}${noisy ? ' (noisy)' : ''}`).toBe(false);
+      }
+    }
+  });
   it('accepts every fingering with 10 dB of noise', () => {
     for (const [name, frets] of Object.entries(fingerings)) {
       const c = chroma(frame(addNoise(strum(frets, 1.5, sr), 10)), sr);

@@ -12,6 +12,7 @@ export const settings = {
   minSegmentSeconds: 0.5,
   maxFileSeconds: 15 * 60,
   verifyThreshold: 0.7,
+  verifyMargin: 0.08,
   verifyFrames: 3,
 };
 

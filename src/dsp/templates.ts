@@ -1,3 +1,5 @@
+import {settings} from './chroma';
+
 export const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'] as const;
 export type Triad = {name: string; root: number; minor: boolean; template: Float32Array};
 
@@ -64,15 +66,16 @@ export function triadSimilarity(chroma: ArrayLike<number>, chord: string) {
   return dot;
 }
 
-const verifyThreshold = 0.7;
-
 // Does this sound contain the expected chord? Used while playing, when we already
 // know what should be sounding. Three conditions, all required:
 //  1. similarity to the expected chord is high enough,
-//  2. its triad is first or second of all 24 (Em and G share two notes),
+//  2. it is within `verifyMargin` of the best matching triad. Chords that share two
+//     notes (Am and C, Em and G) score close but never this close: on test chords a
+//     right chord is the best match (margin 0 or less) and a relative chord misses by
+//     0.14 or more. Raise the margin if real guitars are being rejected,
 //  3. it beats the same root in the other quality (E against Em share root and fifth,
 //     so a high score alone cannot tell them apart).
-export function verifyChord(chroma: ArrayLike<number>, expected: string, threshold = verifyThreshold) {
+export function verifyChord(chroma: ArrayLike<number>, expected: string, threshold = settings.verifyThreshold, margin = settings.verifyMargin) {
   const name = triadName(expected);
   if (!name) return {ok: false, similarity: 0, rank: 24};
   const similarity = similarityTo(chroma, expected);
@@ -81,7 +84,8 @@ export function verifyChord(chroma: ArrayLike<number>, expected: string, thresho
   const rank = 1 + ranked.filter(r => r.name !== name && r.similarity > similarity).length;
   const parallel = name.endsWith('m') ? name.slice(0, -1) : name + 'm';
   const beatsParallel = triadSimilarity(chroma, name) > triadSimilarity(chroma, parallel);
-  return {ok: similarity >= threshold && rank <= 2 && beatsParallel, similarity, rank};
+  const best = ranked[0].similarity;
+  return {ok: similarity >= threshold && best - similarity <= margin && beatsParallel, similarity, rank};
 }
 
 export function rankChords(chroma: ArrayLike<number>) {
