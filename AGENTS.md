@@ -20,3 +20,7 @@ Jazztrum is a client-only React/TypeScript/Vite guitar rhythm app. The owner wan
 - Preserve concurrent work. Never force-push or bypass branch protections. Analysis-only requests do not authorize publication.
 
 The source repository and the published webapp are public. Hosting is GitHub Pages; there is no application backend or required app secret.
+
+## Planned upgrade
+
+The next upgrade (importing recordings, chord timeline, chord recognition) is specified in `docs/HANDOFF-song-import-and-chord-recognition.md`. Read it before starting that work.
