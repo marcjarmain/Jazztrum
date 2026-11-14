@@ -1,19 +1,22 @@
 import {useState} from 'react';
 import {Tuner} from '../Tuner';
+import {ChordLab} from './ChordLab';
 import {GrooveGame} from './GrooveGame';
 import {RecordingScreen} from './RecordingScreen';
 
 type Song = 'disco' | 'metallica';
+type Screen = 'game' | 'tuner' | 'lab';
 
 export function App() {
-  const [tunerOpen, setTunerOpen] = useState(false);
+  const [screen, setScreen] = useState<Screen>('game');
   const [song, setSong] = useState<Song>('disco');
 
-  if (tunerOpen) return <Tuner onClose={() => setTunerOpen(false)} />;
+  if (screen === 'tuner') return <Tuner onClose={() => setScreen('game')} />;
+  if (screen === 'lab') return <ChordLab onClose={() => setScreen('game')} />;
 
-  const openTuner = () => {
+  const open = (next: Screen) => () => {
     document.querySelector('audio')?.pause();
-    setTunerOpen(true);
+    setScreen(next);
   };
   const songChoice = (
     <label className="speed">
@@ -25,6 +28,6 @@ export function App() {
     </label>
   );
   return song === 'metallica'
-    ? <RecordingScreen songChoice={songChoice} onOpenTuner={openTuner} />
-    : <GrooveGame songChoice={songChoice} onOpenTuner={openTuner} />;
+    ? <RecordingScreen songChoice={songChoice} onOpenTuner={open('tuner')} onOpenLab={open('lab')} />
+    : <GrooveGame songChoice={songChoice} onOpenTuner={open('tuner')} onOpenLab={open('lab')} />;
 }

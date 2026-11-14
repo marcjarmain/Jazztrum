@@ -4,6 +4,8 @@ import {judge} from '../game/judge';
 import {tone, pluck, drum, keys} from '../audio/synth';
 import {beatLength, eventTime, audibleTime} from '../audio/clock';
 import {ChordDiagram} from './ChordDiagram';
+import {ChordListener} from '../live/chordListener';
+import {ChordCheck, LoudnessGate} from '../game/chordCheck';
 
 type Mode = 'stop' | 'play' | 'watch' | 'calibrate';
 
@@ -23,9 +25,10 @@ function save(key: string, value: number) {
 }
 
 const beatsPerLoop = 32;
+const chordWindowSeconds = 0.4;
 
 // The built in song: a looping eight bar groove with a scrolling strum timeline.
-export function GrooveGame({songChoice, onOpenTuner}: {songChoice: ReactNode; onOpenTuner: () => void}) {
+export function GrooveGame({songChoice, onOpenTuner, onOpenLab}: {songChoice: ReactNode; onOpenTuner: () => void; onOpenLab: () => void}) {
   const [mode, setMode] = useState<Mode>('stop');
   const [speed, setSpeed] = useState(1);
   const [score, setScore] = useState(0);
@@ -57,6 +60,10 @@ export function GrooveGame({songChoice, onOpenTuner}: {songChoice: ReactNode; on
     cal: [] as number[],
     score: 0,
     offset: stored('offset'),
+    listener: null as ChordListener | null,
+    gate: new LoudnessGate(),
+    pending: null as ChordCheck | null,
+    lastRead: 0,
   });
 
   function stop() {
@@ -68,6 +75,9 @@ export function GrooveGame({songChoice, onOpenTuner}: {songChoice: ReactNode; on
     s.stream?.getTracks().forEach(t => t.stop());
     s.stream = null;
     s.analyser = null;
+    s.listener?.close();
+    s.listener = null;
+    s.pending = null;
     s.mode = 'stop';
     setMode('stop');
     setLevel(0);
@@ -105,6 +115,9 @@ export function GrooveGame({songChoice, onOpenTuner}: {songChoice: ReactNode; on
         s.analyser = ctx.createAnalyser();
         s.analyser.fftSize = 512;
         source.connect(s.analyser);
+        s.listener = new ChordListener(ctx, source);
+        s.gate = new LoudnessGate();
+        s.pending = null;
       } catch {
         setFeedback('Mic unavailable — tap the neck!');
       }
@@ -132,11 +145,11 @@ export function GrooveGame({songChoice, onOpenTuner}: {songChoice: ReactNode; on
   }
 
   // Called when a strum (or a tap on the neck) is detected at audio time `time`.
-  function hit(time: number) {
+  function hit(time: number, fromMic = false) {
     const s = state.current;
     const beatSeconds = beatLength(bpm, s.speed);
     const loopSeconds = beatsPerLoop * beatSeconds;
-    if (!s.ctx || s.mode === 'stop' || s.mode === 'watch' || time - s.last < 0.15 || time < s.quietUntil) return;
+    if (!s.ctx || s.mode === 'stop' || s.mode === 'watch' || time - s.last < 0.15 || time < s.quietUntil || s.pending) return;
     s.last = time;
 
     if (s.mode === 'calibrate') {
@@ -164,17 +177,50 @@ export function GrooveGame({songChoice, onOpenTuner}: {songChoice: ReactNode; on
     const result = judge(time, targets, s.used, s.offset);
     if (!result) return;
     s.used.add(result.id);
+    if (result.result === 'Nailed!' && fromMic && s.listener) {
+      // Good timing from a real strum: now listen for the right chord to ring out.
+      const chord = strums[Number(result.id.split('-')[1])].chord;
+      s.pending = new ChordCheck(result.id, chord, time + chordWindowSeconds);
+      setFeedback('Listening for the chord…');
+      return;
+    }
     setFeedback(result.result);
-    if (result.result === 'Nailed!') {
-      s.score++;
-      setScore(s.score);
-      setBest(old => {
-        const next = Math.max(old, s.score);
-        save('best', next);
-        return next;
-      });
-      tone(s.ctx, time + 0.01, 880, 0.22, 0.08, s.bus!);
-      s.quietUntil = time + 0.25;
+    if (result.result === 'Nailed!') scoreNailed(time);
+  }
+
+  function scoreNailed(time: number) {
+    const s = state.current;
+    s.score++;
+    setScore(s.score);
+    setBest(old => {
+      const next = Math.max(old, s.score);
+      save('best', next);
+      return next;
+    });
+    tone(s.ctx!, time + 0.01, 880, 0.22, 0.08, s.bus!);
+    s.quietUntil = time + 0.25;
+  }
+
+  // Reads the chord listener about 20 times a second and settles any strum waiting for a chord.
+  function listenForChord(audioNow: number, elapsed: number) {
+    const s = state.current;
+    if (!s.listener || performance.now() - s.lastRead < 50) return;
+    s.lastRead = performance.now();
+    if (elapsed < 0) {
+      // Count-in: learn how loud the room is, so the gate sits clearly above it.
+      s.gate.learn(s.listener.read(0).level);
+      return;
+    }
+    const frame = s.listener.read(s.gate.value);
+    if (!s.pending) return;
+    const outcome = s.pending.update(frame, audioNow);
+    if (outcome.state === 'waiting') return;
+    s.pending = null;
+    if (outcome.state === 'hit') {
+      setFeedback('Nailed!');
+      scoreNailed(audioNow);
+    } else {
+      setFeedback(outcome.heard ? `Right time, wrong chord (I heard ${outcome.heard})` : 'Right time, but I could not hear a chord');
     }
   }
 
@@ -238,9 +284,10 @@ export function GrooveGame({songChoice, onOpenTuner}: {songChoice: ReactNode; on
           s.analyser.getFloatTimeDomainData(data);
           const rms = Math.sqrt(data.reduce((a, v) => a + v * v, 0) / data.length);
           setLevel(Math.min(100, rms * 600));
-          if (rms > Math.max(0.018, s.average * 2.8) && rms - s.average > 0.012) hit(now);
+          if (rms > Math.max(0.018, s.average * 2.8) && rms - s.average > 0.012) hit(now, true);
           s.average = s.average * 0.96 + rms * 0.04;
         }
+        listenForChord(now, elapsed);
         if (elapsed >= 0) setCurrent(Math.floor((elapsed / beatSeconds % beatsPerLoop) / 4));
 
         const d = c.getContext('2d')!;
@@ -350,6 +397,7 @@ export function GrooveGame({songChoice, onOpenTuner}: {songChoice: ReactNode; on
       />
       <nav>
         <button onClick={() => { stop(); onOpenTuner(); }}>Tune guitar</button>
+        <button onClick={() => { stop(); onOpenLab(); }}>Chord lab</button>
         {songChoice}
         <label className="speed">
           Speed{' '}
@@ -380,8 +428,8 @@ export function GrooveGame({songChoice, onOpenTuner}: {songChoice: ReactNode; on
           <button onClick={() => setHelp(false)}>Close</button>
           <h2>Let's play!</h2>
           <p>Watch first to hear the song. Then tap Play and strum when a coloured mark reaches the glowing line. You can also tap the neck.</p>
-          <p>Em uses two fingers. For A9, start on the A string and avoid the thick low E string. Jazztrum listens for when you strum, not which chord you play.</p>
-          <p>Tune guitar checks each open string’s pitch. Practice scores measure rhythm, not note or chord accuracy.</p>
+          <p>Em uses two fingers. For A9, start on the A string and avoid the thick low E string. Jazztrum listens for your strum and then checks that the right chord rings out. Use headphones, or keep the volume low, so it does not hear itself.</p>
+          <p>Tune guitar checks each open string’s pitch. A strum scores when it is on the beat and the chord is right. Chord lab shows what the microphone hears. If the microphone is off, tapping the neck scores timing only.</p>
           <p>Timing calibration: strum along with all eight clicks. Offset: {offset} ms. Use the iPad speaker or wired headphones.</p>
         </aside>
       )}

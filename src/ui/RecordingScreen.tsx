@@ -8,7 +8,7 @@ const openStrings = [
 ];
 
 // Temporary screen for the old "Nothing Else Matters" option. Phase 3 replaces it.
-export function RecordingScreen({songChoice, onOpenTuner}: {songChoice: ReactNode; onOpenTuner: () => void}) {
+export function RecordingScreen({songChoice, onOpenTuner, onOpenLab}: {songChoice: ReactNode; onOpenTuner: () => void; onOpenLab: () => void}) {
   const [recording, setRecording] = useState(import.meta.env.BASE_URL + 'nothing-else-matters.mp3');
   const [audioMissing, setAudioMissing] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
@@ -25,6 +25,7 @@ export function RecordingScreen({songChoice, onOpenTuner}: {songChoice: ReactNod
       </header>
       <nav>
         <button onClick={onOpenTuner}>Tune guitar</button>
+        <button onClick={onOpenLab}>Chord lab</button>
         {songChoice}
         <label className="speed">
           Speed{' '}
